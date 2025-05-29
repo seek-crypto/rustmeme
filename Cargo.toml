@@ -1,0 +1,16 @@
+[package]
+name = "rustexample"
+version = "0.1.0"
+edition = "2024"
+default-run = "rustexample"
+
+[dependencies]
+rand = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+actix-web = "4.4"
+actix-ws = "0.3"
+tokio = { version = "1.0", features = ["full"] }
+rdkafka = { version = "0.37.0", features = ["tokio"] }
+futures-util = "0.3"

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-Line WebSocket Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        .control-group h4 {
+            margin: 0;
+            color: #333;
+            font-size: 14px;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            min-width: 120px;
+        }
+        .connect { background-color: #4CAF50; color: white; }
+        .disconnect { background-color: #f44336; color: white; }
+        .subscribe { background-color: #2196F3; color: white; }
+        .unsubscribe { background-color: #ff9800; color: white; }
+        .simple { background-color: #00bcd4; color: white; }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        
+        .messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f9f9f9;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .kline-data {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .kline-window {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .kline-window h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 5px;
+        }
+        
+        .kline-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .kline-item:last-child {
+            border-bottom: none;
+        }
+        
+        .label {
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .value {
+            color: #333;
+        }
+        
+        .price {
+            color: #2196F3;
+            font-weight: bold;
+        }
+        
+        .count {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 200px;
+        }
+
+        .send-btn {
+            background-color: #607d8b;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>K-Line WebSocket Client</h1>
+        
+        <div id="status" class="status disconnected">Disconnected</div>
+        
+        <div class="control-group">
+            <h4>Connection</h4>
+            <div class="controls">
+                <button class="connect" onclick="connect()">Connect</button>
+                <button class="disconnect" onclick="disconnect()">Disconnect</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h4>WebSocket Commands</h4>
+            <div class="controls">
+                <button class="simple" onclick="sendSimpleCommand('sub-5m')">sub-5m</button>
+                <button class="unsubscribe" onclick="sendSimpleCommand('unsub')">unsub</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h4>Additional Subscribe Options</h4>
+            <div class="controls">
+                <button class="simple" onclick="sendSimpleCommand('sub-1s')">sub-1s</button>
+                <button class="simple" onclick="sendSimpleCommand('sub-1m')">sub-1m</button>
+                <button class="simple" onclick="sendSimpleCommand('sub-1h')">sub-1h</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h4>Custom Command</h4>
+            <div class="input-group">
+                <input type="text" id="customCommand" placeholder="Enter command (e.g., sub-1s, unsub, ping)" />
+                <button class="send-btn" onclick="sendCustomCommand()">Send</button>
+            </div>
+        </div>
+        
+        <div class="messages" id="messages"></div>
+    </div>
+    
+    <div class="kline-data" id="klineData">
+        <div class="kline-window">
+            <h3>1 Second</h3>
+            <div id="kline-1s">No data</div>
+        </div>
+        <div class="kline-window">
+            <h3>1 Minute</h3>
+            <div id="kline-1m">No data</div>
+        </div>
+        <div class="kline-window">
+            <h3>5 Minutes</h3>
+            <div id="kline-5m">No data</div>
+        </div>
+        <div class="kline-window">
+            <h3>1 Hour</h3>
+            <div id="kline-1h">No data</div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        const messages = document.getElementById('messages');
+        const status = document.getElementById('status');
+
+        function addMessage(message) {
+            const div = document.createElement('div');
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            if (connected) {
+                status.textContent = 'Connected';
+                status.className = 'status connected';
+            } else {
+                status.textContent = 'Disconnected';
+                status.className = 'status disconnected';
+            }
+        }
+
+        function formatKLineData(data) {
+            const timestamp = new Date(data.timestamp * 1000).toLocaleString();
+            return `
+                <div class="kline-item">
+                    <span class="label">Time:</span>
+                    <span class="value">${timestamp}</span>
+                </div>
+                <div class="kline-item">
+                    <span class="label">Open:</span>
+                    <span class="value price">${data.open.toFixed(8)}</span>
+                </div>
+                <div class="kline-item">
+                    <span class="label">High:</span>
+                    <span class="value price">${data.high.toFixed(8)}</span>
+                </div>
+                <div class="kline-item">
+                    <span class="label">Low:</span>
+                    <span class="value price">${data.low.toFixed(8)}</span>
+                </div>
+                <div class="kline-item">
+                    <span class="label">Close:</span>
+                    <span class="value price">${data.close.toFixed(8)}</span>
+                </div>
+                <div class="kline-item">
+                    <span class="label">Count:</span>
+                    <span class="value count">${data.count}</span>
+                </div>
+            `;
+        }
+
+        function connect() {
+            if (ws) {
+                addMessage('Already connected');
+                return;
+            }
+
+            ws = new WebSocket('ws://127.0.0.1:8080/ws');
+            
+            ws.onopen = function() {
+                addMessage('Connected to WebSocket server');
+                updateStatus(true);
+            };
+            
+            ws.onmessage = function(event) {
+                const data = event.data;
+                
+                // Always display ALL data received from server
+                addMessage(`Server Data: ${data}`);
+                
+                // Handle simple text responses
+                if (data.startsWith('Subscribed to') || data.startsWith('Unsubscribed from') || data.startsWith('Error:')) {
+                    // Already logged above, no additional processing needed
+                    return;
+                }
+                
+                // Handle JSON responses
+                try {
+                    const jsonData = JSON.parse(data);
+                    
+                    if (jsonData.type === 'kline_update') {
+                        const windowElement = document.getElementById(`kline-${jsonData.window}`);
+                        if (windowElement) {
+                            windowElement.innerHTML = formatKLineData(jsonData.data);
+                        }
+                        // Show a brief message for real-time updates
+                        addMessage(`K-Line Update [${jsonData.window}]: ${jsonData.data.close.toFixed(8)}`);
+                    } else if (jsonData.type === 'history') {
+                        addMessage(`History for ${jsonData.window}: ${jsonData.data.length} records`);
+                        if (jsonData.data.length > 0) {
+                            const latest = jsonData.data[jsonData.data.length - 1];
+                            const windowElement = document.getElementById(`kline-${jsonData.window}`);
+                            if (windowElement) {
+                                windowElement.innerHTML = formatKLineData(latest);
+                            }
+                        }
+                    } else if (jsonData.type === 'pong') {
+                        addMessage('Received pong from server');
+                    } else {
+                        // Any other JSON data will be displayed
+                        addMessage(`Received JSON: ${JSON.stringify(jsonData, null, 2)}`);
+                    }
+                } catch (e) {
+                    // Non-JSON data is already logged above
+                }
+            };
+            
+            ws.onclose = function() {
+                addMessage('Disconnected from WebSocket server');
+                updateStatus(false);
+                ws = null;
+            };
+            
+            ws.onerror = function(error) {
+                addMessage(`WebSocket error: ${error}`);
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                addMessage('Disconnecting...');
+                ws.close();
+                ws = null;
+                updateStatus(false);
+            } else {
+                addMessage('Already disconnected');
+            }
+        }
+
+        function sendSimpleCommand(command) {
+            if (!ws) {
+                addMessage('Not connected');
+                return;
+            }
+            
+            ws.send(command);
+            addMessage(`Sent command: ${command}`);
+        }
+
+        function sendCustomCommand() {
+            const input = document.getElementById('customCommand');
+            const command = input.value.trim();
+            
+            if (!command) {
+                addMessage('Please enter a command');
+                return;
+            }
+            
+            if (!ws) {
+                addMessage('Not connected');
+                return;
+            }
+            
+            ws.send(command);
+            addMessage(`Sent custom command: ${command}`);
+            input.value = '';
+        }
+
+        // Handle Enter key in custom command input
+        document.getElementById('customCommand').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendCustomCommand();
+            }
+        });
+
+        // Auto-connect on page load
+        window.onload = function() {
+            setTimeout(connect, 1000);
+        };
+    </script>
+</body>
+</html>
